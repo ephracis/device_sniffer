@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 import locale
+import os
 import pcap
 import sys
 import time
@@ -64,6 +65,15 @@ def human_duration(timespan):
 		return ", ".join(dur[:-1]) + " and " + dur[-1]
 	return " and ".join(dur)
 
+def get_mac_address(interface):
+	""" get the mac address (human readable form) from a given interface. """
+	try:
+		line = os.popen("ifconfig {} | grep ether".format(interface)).read()
+		return line.split()[1]
+	except:
+		print "error: could not get mac address from device " + interface
+		exit(0)
+
 def saw_addr(addr, direction):
 	""" Tells the database that a MAC address was just seen.
 		
@@ -124,22 +134,28 @@ time_start = now()
 time_end = now()
 if __name__ == '__main__':
 	
-	if len(sys.argv) < 2:
-		print "usage: %s <own_mac_address> [interface]" % sys.argv[0]
+	if len(sys.argv) > 1 and sys.argv[1] == "-h":
+		print "usage: %s [interface]" % sys.argv[0]
 		exit(0)
 	
-	filtered_addresses.append(sys.argv[1])
+	print "device_sniffer\nv0.1 by ephracis\n"
 	
 	p = pcap.pcapObject()
 
 	# get interface
 	inf = pcap.lookupdev()
-	if len(sys.argv) > 2:
-		inf = sys.argv[2]
+	if len(sys.argv) > 1:
+		inf = sys.argv[1]
 	print "sniffing on interface: %s" % inf
 
 	# get properties of interface
-	net, mask = pcap.lookupnet(inf)
+	try:
+		net, mask = pcap.lookupnet(inf)
+	except:
+		print "error: interface %s is not connected" % inf
+		exit(0)
+	mac = get_mac_address(inf)
+	filtered_addresses.append(mac)
 
 	# start capture session in promiscious mode
 	p.open_live(inf, 1600, 1, 100)
