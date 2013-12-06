@@ -1,7 +1,7 @@
 Device Sniffer
 ==============
 
-A network sniffer that counts and lists the number of devices present within range.
+A network sniffer that counts and lists the number of devices that are present on the network.
 
 Features:
 * Total number of present devices
@@ -12,7 +12,7 @@ Features:
 
 ## Requirements
 
-You need to install some packages before you can run Hermes:
+You need to install a python module before you can run device_sniffer:
 
 * **pylibpcap**<br/>
  The libpcap library for Python.<br/>
@@ -21,15 +21,15 @@ You need to install some packages before you can run Hermes:
 
 ## Usage
 
-You can either run device_sniffer without any arguments:<br/>
+You can run device_sniffer without any arguments, it will then automatically choose the interface to sniff on:<br/>
 `$ python device_sniffer.py`
 
-It will then automatically choose an interface to sniff on. You can also specify the interface if you want:<br/>
+You can also tell it to sniff on a specific interface:<br/>
 `$ python device_sniffer.py en0`
 
 ## Support
 
-You can email me at my gmail where my username is: ephracis
+Need help? You can email me at my gmail where my username is: ephracis
 
 ## Contribute
 
