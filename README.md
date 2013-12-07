@@ -15,8 +15,8 @@ Features:
 You need to install a python module before you can run device_sniffer:
 
 * **pylibpcap**<br/>
- The libpcap library for Python.<br/>
- http://sourceforge.net/projects/pylibpcap/
+ A libpcap library for Python which I've modified.<br/>
+ https://github.com/ephracis/pylibpcap
 
 
 ## Usage
