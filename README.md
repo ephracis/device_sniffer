@@ -5,10 +5,11 @@ A network sniffer that counts and lists the number of devices that are present o
 
 Features:
 * Total number of present devices
-* MAC address of the device
+* MAC address of each device
+* Manufacturer of each device
 * Packets sent to and from each device
-* When the device was first seen
-* When the device was last seen
+* When each device was first seen
+* When each device was last seen
 
 ## Requirements
 
