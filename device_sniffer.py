@@ -7,14 +7,45 @@ import pcap
 import sys
 import time
 
+from device_types import *
+
 locale.setlocale(locale.LC_ALL, 'en_US')
 devices = {}
-filtered_addresses = ["ff:ff:ff:ff:ff:ff"]
 time_format = "%Y-%m-%d %H:%M:%S"
+table_format = "{:20} {:13} {:10} {:13} {:22} {:20}"
+
+# a list of addresses (or prefixes) which we do not count
+filtered_addresses = [
+
+	# broadcast
+	"ff:ff:ff:ff:ff:ff",
+
+	# spanning tree
+	"01:80:c2",
+
+	# ipv4
+	"01:00:5e",
+	
+	# ipv6
+	"33:33:00",
+	"33:33:ff",
+]
+
+def device_type(addr):
+	""" Gets the name of the manufacturer of the device. """
+	for t in device_types:
+		for pfx in device_types[t]:
+			if addr.startswith(pfx):
+				return t
+	return "Unknown"
 
 def human_addr(addr):
 	""" Turns a MAC address into human readable form. """
 	return ":".join(map(lambda a: "%02x" % ord(a), addr))
+
+def is_request_to_send(data):
+	""" Check if a packet is a request-to-send packet. """
+	return len(data) == 45 and ord(data[25]) == 0xb4 and ord(data[26]) == 0x00
 
 def sp(number, singular, plural):
 	""" Return either a singular or plural form of a noun based on a number. """
@@ -74,13 +105,20 @@ def get_mac_address(interface):
 		print "error: could not get mac address from device " + interface
 		exit(0)
 
+def ignore(addr):
+	""" Returns whether or not the address should be ignored. """
+	for a in filtered_addresses:
+		if addr.startswith(a):
+			return True
+	return False
+
 def saw_addr(addr, direction):
 	""" Tells the database that a MAC address was just seen.
 		
 		direction: out/in """
 	
 	# skip this device's own address, broadcast, etc.
-	if addr in filtered_addresses:
+	if ignore(addr):
 		return
 	
 	# create initial structure
@@ -95,12 +133,18 @@ def catch_packet(pktlen, data, timestamp):
 	""" Callback when a single packet is captured. """
 	
 	# skip bad packets
-	if not data or len(data) < 12:
+	if not data:
+		return
+		
+	# we only look for request-to-send packets
+	if not is_request_to_send(data):
 		return
 
 	# update database
-	saw_addr(human_addr(data[0:6]), 'in')
-	saw_addr(human_addr(data[6:12]), 'out')
+	saw_addr(human_addr(data[29:35]), 'in')
+	saw_addr(human_addr(data[35:41]), 'out')
+
+	#print "got package of %d bytes" % pktlen
 
 	# update output line
 	sys.stdout.write("\rhave seen {} devices so far \033[K".format(len(devices)))
@@ -114,18 +158,24 @@ def print_device(device):
 	pkt_in = locale.format("%d", device['packets_in'], grouping=True)
 	seen_fst = device['first_seen']
 	seen_lst = device['last_seen']
+	t = device_type(addr)
 	
-	print("{:20} {:15} {:15} {:20} {:20}".format(addr, pkt_out, pkt_in, seen_fst, seen_lst))
+	print(table_format.format(addr, t, pkt_out, pkt_in, seen_fst, seen_lst))
 
 def print_results():
 	""" Prints a table with all seen devices. """
 	
-	hdr = "{:20} {:15} {:15} {:20} {:20}".format("address", "sent", "received", "first seen", "last seen")
-	print hdr
-	print len(hdr) * "-"
-	for d in devices:
-		print_device(devices[d])
-	print ""
+	hdr = table_format.format("address", "type", "sent", "received", "first seen", "last seen")
+	
+	
+	if len(devices) > 0:
+		print "these devices were seen:"
+		print ""
+		print hdr
+		print len(hdr) * "-"
+		for d in devices:
+			print_device(devices[d])
+		print ""
 
 	duration = human_duration(seconds_between(time_start, time_end))
 	print "a total of {} devices were seen over a duration of {}".format(len(devices), duration)
@@ -149,16 +199,19 @@ if __name__ == '__main__':
 	print "sniffing on interface: %s" % inf
 
 	# get properties of interface
-	try:
-		net, mask = pcap.lookupnet(inf)
-	except:
-		print "error: interface %s is not connected" % inf
-		exit(0)
 	mac = get_mac_address(inf)
 	filtered_addresses.append(mac)
 
+	# set monitor mode
+	#try:
+	#p.set_rfmon()
+	#except:
+	#	print "warning: could not enter monitor mode"
+
 	# start capture session in promiscious mode
 	p.open_live(inf, 1600, 1, 100)
+	sys.stdout.write("have seen 0 devices so far ")
+	sys.stdout.flush()
 	try:
 		while 1:
 			p.dispatch(1, catch_packet)
@@ -167,6 +220,4 @@ if __name__ == '__main__':
 		time_end = now()
 		print ""
 		print "shutting down"
-		print "these devices were seen: "
-		print ""
 		print_results()
