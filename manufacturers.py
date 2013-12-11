@@ -2,7 +2,7 @@
 # address prefixes owned by various manufacturers
 # of network cards.
 
-device_types = {
+manufacturers = {
 	"Apple": [
 		"00:03:93",
 		"00:05:02",
