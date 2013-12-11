@@ -3,8 +3,9 @@ Device Sniffer
 
 A network sniffer that counts and lists the number of devices that are present on the network.
 
-Features:
-* Total number of present devices
+Let's you see the following information:
+* If the device is connected, scanning, or an access point
+* What network the device is connected to
 * MAC address of each device
 * Manufacturer of each device
 * Packets sent to and from each device
@@ -25,8 +26,11 @@ You need to install a python module before you can run device_sniffer:
 You can run device_sniffer without any arguments, it will then automatically choose the interface to sniff on:<br/>
 `$ python device_sniffer.py`
 
+You can also tell it to only scan for devices not connected to a wireless network:<br/>
+`$ python device_sniffer.py scanning`
+
 You can also tell it to sniff on a specific interface:<br/>
-`$ python device_sniffer.py en0`
+`$ python device_sniffer.py scanning en0`
 
 ## Support
 
