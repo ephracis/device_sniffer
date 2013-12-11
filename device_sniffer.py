@@ -192,7 +192,6 @@ def catch_packet(pktlen, data, timestamp):
 		return
 		
 	if is_probe_response(data):
-		print "\nfound a probe resonse!\n"
 		ssids[human_addr(data[41:47])] = ssid(data)
 		
 	elif types['scanning'] and is_probe_request(data):
