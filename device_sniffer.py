@@ -7,7 +7,10 @@ import pcap
 import sys
 import time
 
+from commandline import *
 from manufacturers import *
+
+version = '0.1'
 
 locale.setlocale(locale.LC_ALL, 'en_US')
 devices = {}
@@ -15,6 +18,9 @@ time_format = "%Y-%m-%d %H:%M:%S"
 table_format = "{:20} {:13} {:15} {:15} {:10} {:13} {:22} {:20}"
 types = {'connected':1, 'scanning':1}
 ssids = {}
+args = None
+spinner = ['-','\\','|','/']
+spin_pos = 0
 
 # a list of addresses (or prefixes) which we do not count
 filtered_addresses = [
@@ -171,10 +177,21 @@ def saw_addr(addr, direction, type, bssid):
 	if is_access_point(manu):
 		type = "access point"
 		bssid = addr
+		#if not bssid in ssids:
+		#	ssids[bssid] = bssid
 	
 	# create initial structure
 	if not addr in devices:
 		devices[addr] = {'addr':addr, 'type':type, 'bssid':'', 'manufacturer': manu, 'packets_out':0, 'packets_in':0, 'first_seen': now(), 'last_seen':now()}
+		
+		if args.verbosity == 1:
+			if type == "access point":
+				_ssid = ""
+				if addr in ssids and ssids[addr] != addr:
+					_ssid = " and ssid '{}'".format(ssids[addr])
+				print "saw a {} {} with address {}{}".format(manu,type,addr,_ssid)
+			else:
+				print "saw a {} {} device with address {}".format(type,manu,addr)
 
 	# update bssid
 	if bssid != '':
@@ -191,25 +208,49 @@ def catch_packet(pktlen, data, timestamp):
 	if not data:
 		return
 		
+	sys.stdout.write("\r")
+		
 	if is_probe_response(data):
-		ssids[human_addr(data[41:47])] = ssid(data)
+		s = ssid(data)
+		b = human_addr(data[41:47])
+		ssids[b] = s
+		if args.verbosity > 1:
+			print "got packet: type=probe-response, ssid={}, bssid={}".format(s,b)
 		
 	elif types['scanning'] and is_probe_request(data):
-		saw_addr(human_addr(data[35:41]), 'out', 'scanning', '')
+		a = human_addr(data[35:41])
+		if args.verbosity > 1:
+			print "got packet: type=probe-request, source={}".format(a)
+		saw_addr(a, 'out', 'scanning', '')
 		
 	elif types['connected'] and is_request_to_send(data):
-		saw_addr(human_addr(data[29:35]), 'in', 'connected', '')
-		saw_addr(human_addr(data[35:41]), 'out', 'connected', '')
+		da = human_addr(data[29:35])
+		sa = human_addr(data[35:41])
+		if args.verbosity > 1:
+			print "got packet: type=request-to-send, source={}, destination={}".format(sa,da)
+		saw_addr(da, 'in', 'connected', '')
+		saw_addr(sa, 'out', 'connected', '')
 		
 	elif types['connected'] and is_data(data):
-		saw_addr(human_addr(data[29:35]), 'in', 'connected', human_addr(data[35:41]))
-		saw_addr(human_addr(data[41:47]), 'out', 'connected', human_addr(data[35:41]))
+		da = human_addr(data[29:35])
+		sa = human_addr(data[41:47])
+		s = human_addr(data[35:41])
+		if args.verbosity > 1:
+			print "got packet: type=data, source={}, destination={}, ssid={}".format(sa,da, s)
+		saw_addr(da, 'in', 'connected', s)
+		saw_addr(sa, 'out', 'connected', s)
 
 	else:
 		return
 
 	# update output line
-	sys.stdout.write("\rhave seen {} devices so far \033[K".format(len(devices)))
+	suf = ""
+	global spin_pos
+	if args.verbosity == None:
+		suf = " " + spinner[spin_pos % len(spinner)]
+		spin_pos = spin_pos + 1 % len(spinner)
+
+	sys.stdout.write("\rhave seen {} devices so far{} \033[K".format(len(devices),suf))
 	sys.stdout.flush()
 
 def print_device(device):
@@ -235,9 +276,27 @@ def print_results():
 		print ""
 		print hdr
 		print len(hdr) * "-"
-		for d in devices:
-			print_device(devices[d])
-		print ""
+		
+		if types['connected']:
+			_b = False
+			for d in devices:
+				if devices[d]['type'] == 'access point':
+					_b = True
+					print_device(devices[d])
+			if _b:
+				print ""
+			_b = False
+			for d in devices:
+				if devices[d]['type'] == 'connected':
+					_b = True
+					print_device(devices[d])
+			if _b:
+				print ""
+		if types['scanning']:
+			for d in devices:
+				if devices[d]['type'] == 'scanning':
+					print_device(devices[d])
+			print ""
 
 	duration = human_duration(seconds_between(time_start, time_end))
 	print "a total of {} devices were seen over a duration of {}".format(len(devices), duration)
@@ -245,30 +304,28 @@ def print_results():
 time_start = now()
 time_end = now()
 if __name__ == '__main__':
+	args = parseArgs()
 	
-	print "device_sniffer\nv0.1 by ephracis\n"
-	
-	if len(sys.argv) > 1 and sys.argv[1] == "-h":
-		print "usage: %s [connected/scanning/both] [interface]" % sys.argv[0]
-		exit(0)
+	print "device_sniffer\nv%s by ephracis\n" % version
 	
 	p = pcap.pcapObject()
 
 	# get what type of device to look for
-	if len(sys.argv) > 1:
-		if sys.argv[1] == 'scanning':
-			types['connected'] = 0
-		elif sys.argv[1] == 'connected':
-			types['scanning'] = 0
+	if args.types == 'scanning':
+		types['connected'] = 0
+	elif args.types == 'connected':
+		types['scanning'] = 0
 
 	# get interface
 	inf = pcap.lookupdev()
-	if len(sys.argv) > 2:
-		inf = sys.argv[2]
+	if args.inf:
+		inf = args.inf
 	print "sniffing on interface: %s" % inf
 
 	# get properties of interface
 	mac = get_mac_address(inf)
+	if args.verbosity > 1:
+		print "this device's mac address: {}".format(mac)
 	filtered_addresses.append(mac)
 
 	# set monitor mode
@@ -279,7 +336,7 @@ if __name__ == '__main__':
 
 	# start capture session in promiscious mode
 	p.open_live(inf, 1600, 1, 100)
-	sys.stdout.write("have seen 0 devices so far ")
+	sys.stdout.write("have seen 0 devices so far   ")
 	sys.stdout.flush()
 	try:
 		while 1:

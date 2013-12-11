@@ -26,11 +26,14 @@ You need to install a python module before you can run device_sniffer:
 You can run device_sniffer without any arguments, it will then automatically choose the interface to sniff on:<br/>
 `$ python device_sniffer.py`
 
+You can also tell it to sniff on a specific interface:<br/>
+`$ python device_sniffer.py -i en0`
+
 You can also tell it to only scan for devices not connected to a wireless network:<br/>
 `$ python device_sniffer.py scanning`
 
-You can also tell it to sniff on a specific interface:<br/>
-`$ python device_sniffer.py scanning en0`
+For more information see the help
+`$ python device_sniffer.py -h`
 
 ## Support
 
