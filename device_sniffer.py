@@ -27,15 +27,15 @@ filtered_addresses = [
 
 	# broadcast
 	"ff:ff:ff:ff:ff:ff",
+	"00:00:00:00:00:00",
 
-	# spanning tree
+	# network
 	"01:80:c2",
-
-	# ipv4
+	"01:00:0c",
 	"01:00:5e",
-	
-	# ipv6
+	"00:00:5e",
 	"33:33:00",
+	"33:33:02",
 	"33:33:ff",
 ]
 
